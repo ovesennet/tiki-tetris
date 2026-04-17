@@ -16,11 +16,11 @@ The easiest way to play is with the included emulator on Windows:
 
 ### Running on real hardware
 
-The `dsk/work.dsk` image is a standard TIKI-100 400K floppy format and can
+The `dsk/tetris.dsk` image is a standard TIKI-100 400K floppy format and can
 be used on a real machine:
 
 - **Gotek floppy emulator:** Copy the `.dsk` file to a USB stick and load it
-  as a virtual floppy on the Gotek
+  as a virtual floppy on the Gotek connected to the TIKI
 - **Real 400K floppy:** Boot the TIKI-100 from the Gotek, then use the
   built-in **RÅKOPI** program to copy the disk image to a physical 5.25"
   floppy disk

@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "name": "z88dk (TIKI-100)",
+            "includePath": [
+                "${workspaceFolder}/src/c",
+                "C:/z88dk/include",
+                "C:/z88dk/include/_DEVELOPMENT/sccz80"
+            ],
+            "defines": [
+                "__CPM",
+                "CPM",
+                "__CPM__",
+                "__TIKI100__",
+                "__Z80",
+                "Z80"
+            ],
+            "compilerPath": "",
+            "cStandard": "c89",
+            "intelliSenseMode": "gcc-x86"
+        }
+    ],
+    "version": 4
+}

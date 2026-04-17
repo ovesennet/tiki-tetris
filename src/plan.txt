@@ -1,0 +1,623 @@
+Tetris: core rules
+
+There are many Tetris variants. If you want “close to the original”, you need to pick a reference, because the rules differ between:
+
+Early Soviet / PC versions
+Nintendo NES Tetris (1989)
+Game Boy Tetris (1989)
+Modern Guideline Tetris
+
+For a TIKI-100, the best target is usually:
+
+NES/Game Boy style
+No wall kicks
+No hold piece
+No ghost piece
+Simple scoring
+Gravity increases by level
+
+That gives the classic feel and is practical to implement.
+
+Basic gameplay rules
+Playfield
+
+The standard Tetris well is:
+
+10 cells wide
+20 visible rows high
+
+Many implementations keep a few hidden rows above the top for spawning pieces.
+
+Recommended internal board:
+
+10 × 22 or 10 × 24
+top 2–4 rows hidden
+Tetrominoes
+
+There are 7 piece types:
+
+I
+O
+T
+S
+Z
+J
+L
+
+Each piece consists of 4 blocks.
+
+Each piece has 1–4 rotations:
+
+O: 1 effective rotation
+I, S, Z: 2 effective rotations
+T, J, L: 4 rotations
+
+For a classic implementation, use fixed rotation tables.
+
+Piece spawn
+
+A new piece appears at the top, centered approximately in the playfield.
+
+Typical behavior:
+
+Spawn near the middle
+If the spawn position overlaps existing blocks, the game is over
+Falling and locking
+
+The active piece:
+
+falls automatically due to gravity
+can be moved left/right by player input
+can be rotated
+can be soft-dropped faster by holding down
+
+When the piece can no longer move down:
+
+it becomes part of the board
+any full lines are removed
+a new piece spawns
+
+For a simple classic version, lock immediately on contact.
+You do not need modern lock delay.
+
+Rotation rules
+
+For a classic implementation:
+
+Rotate 90 degrees
+If rotated piece collides with wall or blocks, the rotation fails
+No wall kick system
+
+This is much simpler and matches old-school behavior well.
+
+Line clear rules
+
+If a row becomes completely full:
+
+remove that row
+move all rows above it down by 1
+insert empty rows at the top
+
+If several rows are full at once, clear them together:
+
+1 line = single
+2 lines = double
+3 lines = triple
+4 lines = tetris
+Game over
+
+Game ends when:
+
+a new piece cannot be spawned because blocks already occupy the spawn area
+Level progression
+
+A classic Tetris game progresses by making pieces fall faster as the player clears lines.
+
+Common classic model
+Start at a chosen level
+Every 10 cleared lines, level increases by 1
+Higher level = faster gravity
+
+This is the simplest and most recognizable rule set.
+
+Scoring
+
+A good classic scoring model is the NES/Game Boy style:
+
+Single: 40 × (level + 1)
+Double: 100 × (level + 1)
+Triple: 300 × (level + 1)
+Tetris: 1200 × (level + 1)
+
+Optional:
+
+soft drop: +1 per cell manually dropped
+
+For TIKI-100, this is easy and feels authentic.
+
+Gravity / speed
+
+Tetris becomes harder because pieces fall faster.
+
+You can implement speed as:
+
+a table of frames per row drop
+or ticks per row drop
+
+Example concept:
+
+Level	Drop speed
+0	very slow
+1	slightly faster
+2	faster
+...	...
+9+	fast
+
+For a TIKI-100 implementation, use a lookup table like:
+
+const unsigned char g_dropDelayByLevel[] = {
+    48, 43, 38, 33, 28, 23, 18, 13, 8, 6,
+    5, 5, 4, 4, 3, 3, 2, 2, 1, 1
+};
+
+These values are “ticks per row”, not exact historical timings. They are practical for implementation.
+
+What you do not need for classic Tetris
+
+Do not add these if you want an old-school feel:
+
+Hold piece
+Ghost piece
+Hard drop with instant lock and modern scoring
+T-spin rules
+Combo system
+Back-to-back bonuses
+Bag randomizer
+Piece randomization
+
+Old Tetris versions were not always perfectly fair. For a retro machine, two good choices are:
+
+Option A: simple random
+piece = rand() % 7
+
+Easy, authentic enough, but can produce long droughts.
+
+Option B: shuffled 7-piece bag
+place all 7 pieces in a bag
+shuffle
+draw one by one
+
+This is fairer, but more modern.
+
+For “close to the original”, I would actually recommend:
+
+simple PRNG + modulo 7
+
+It feels more old-school.
+
+Practical rule set to implement
+
+This is the exact rule set I would recommend for your TIKI-100 version:
+
+Ruleset
+Board: 10 × 20 visible, 2 hidden rows
+7 tetrominoes
+Spawn centered near top
+One next-piece preview
+Left/right movement
+Rotate clockwise only, or both directions if desired
+Soft drop
+No hold
+No ghost piece
+No wall kicks
+Immediate lock when landing
+Clear full lines
+Level increases every 10 lines
+Score using classic single/double/triple/tetris values
+Game over if spawn blocked
+Simple PRNG for piece choice
+
+This will feel recognizably classic and remain feasible on the TIKI-100.
+
+Recommended architecture for C + assembly
+
+Use C for game logic and assembly for performance-critical/video/input routines.
+
+C responsibilities
+Main game state
+Board array
+Piece logic
+Collision tests
+Rotation logic
+Line clear logic
+Score/level/lines
+State machine: title, play, game over
+Assembly responsibilities
+Fast screen drawing
+Keyboard scan
+Optional timing / VBlank-style pacing
+Optional sprite/tile blit helpers
+Sound effects if needed
+
+That is the safest split.
+
+Data structures
+Board
+
+Use one byte per cell.
+
+#define BOARD_W 10
+#define BOARD_H 22   /* includes hidden rows */
+
+unsigned char g_board[BOARD_H][BOARD_W];
+
+Cell values:
+
+0 = empty
+1..7 = occupied by piece type/color
+Active piece
+typedef struct
+{
+    unsigned char type;      /* 0..6 */
+    unsigned char rotation;  /* 0..3 */
+    signed char x;
+    signed char y;
+} ActivePiece;
+Game state
+typedef struct
+{
+    ActivePiece current;
+    unsigned char nextPiece;
+    unsigned long score;
+    unsigned int lines;
+    unsigned char level;
+    unsigned char gameOver;
+
+    unsigned char fallTimer;
+    unsigned char dropDelay;
+} GameState;
+Tetromino definition
+
+Best approach: store each rotation as a 4x4 bitmap.
+
+const unsigned char g_tetromino[7][4][4][4];
+
+Or more compact:
+
+const unsigned short g_tetrominoBits[7][4];
+
+Each 16-bit value represents a 4×4 block mask.
+
+That makes collision detection fast.
+
+Main loop design
+
+Use a fixed tick loop.
+
+Per frame / tick
+Read input
+Apply left/right/rotate/soft-drop
+Update gravity timer
+If gravity triggers, try move piece down
+If blocked:
+lock piece into board
+clear lines
+update score
+update level
+spawn new piece
+Render
+Wait for next tick
+Collision logic
+
+A function like:
+
+unsigned char CanPlacePiece(unsigned char type,
+                            unsigned char rotation,
+                            signed char x,
+                            signed char y);
+
+Returns false if:
+
+outside left/right bounds
+below floor
+overlaps occupied cells
+
+This becomes the core of almost everything.
+
+Rotation logic
+
+Very simple:
+
+newRot = (oldRot + 1) & 3;
+if (CanPlacePiece(type, newRot, x, y))
+    rotation = newRot;
+
+If not valid, ignore the rotate input.
+
+Lock and clear flow
+
+When a piece lands:
+
+1. Merge piece into board
+
+Write its 4 blocks into board array.
+
+2. Scan for full lines
+
+Check rows touched by the piece, or simply scan entire board.
+
+3. Remove full rows
+
+Shift above rows downward.
+
+4. Award score
+1 line: 40 × (level+1)
+2 lines: 100 × (level+1)
+3 lines: 300 × (level+1)
+4 lines: 1200 × (level+1)
+5. Update total lines
+
+If lines / 10 changes, raise level.
+
+Input behavior
+
+For a first version:
+
+left = move left once per press
+right = move right once per press
+up = rotate
+down = soft drop
+optional key = drop faster or instant drop
+
+Do not start with DAS/ARR-style key repeat logic.
+First make it playable. Add repeat later.
+
+A very small retro-friendly input model:
+
+on initial key press: move once
+while held: repeat after delay
+
+That can be added once the core works.
+
+Rendering strategy on TIKI-100
+
+Because the board is only 10×20, rendering is manageable.
+
+Recommended display layout
+Playfield centered
+Next piece preview on one side
+Score / lines / level on other side
+Block rendering
+
+Each cell can be drawn as:
+
+solid colored square
+shaded square
+simple patterned tile
+
+A block size like 6×6, 8×8, or similar should work, depending on chosen video mode.
+
+For performance:
+
+redraw only changed cells if needed
+but for first version, full redraw of board area may still be acceptable
+Development plan
+Phase 1: define the exact ruleset
+
+Lock these decisions first:
+
+10×20 board
+7 classic pieces
+no wall kicks
+no hold
+next-piece preview
+simple PRNG
+level every 10 lines
+classic scoring
+
+Do this before coding further.
+
+Phase 2: build logic without graphics
+
+Write a text/debug version in C first.
+
+Implement:
+
+board data
+piece spawn
+collision
+move left/right/down
+rotate
+lock
+line clear
+scoring
+level progression
+
+Output to console or memory dump if possible.
+
+Goal: prove the rules work before touching graphics.
+
+Phase 3: create timing model
+
+Decide your game tick rate.
+
+Example:
+
+50 Hz main loop
+gravity uses tick countdown table per level
+
+Then define:
+
+input repeat timing
+soft drop behavior
+piece lock behavior
+Phase 4: add rendering
+
+Implement assembly helpers for:
+
+clear playfield
+draw block
+draw board
+draw active piece
+draw next piece
+draw score/level/lines
+
+Start simple. Avoid premature optimization.
+
+Phase 5: input polish
+
+Add:
+
+key debounce
+repeat delay for left/right
+clean rotation timing
+soft drop feel
+
+This stage matters a lot for playability.
+
+Phase 6: tune gameplay
+
+Test and adjust:
+
+spawn positions
+speed table
+scoring
+randomizer quality
+rendering speed
+controls
+
+A Tetris clone lives or dies on feel.
+
+Phase 7: add extras
+
+Only after core gameplay works:
+
+title screen
+pause
+sound effects
+high score table
+demo/attract mode
+Suggested module breakdown
+C files
+tetris.c — main loop / state machine
+board.c — board operations, line clears
+piece.c — tetromino data, collision, rotation, spawn
+score.c — score/level/lines
+input.c — key state abstraction
+render.c — high-level drawing calls
+Assembly files
+video.asm — fast block drawing, clear, text helpers
+input.asm — fast keyboard scan
+timer.asm — optional precise timing hooks
+sound.asm — optional beeps/effects
+Minimum viable implementation order
+
+Implement in this order:
+
+Board array
+Tetromino tables
+Collision detection
+Spawn new piece
+Move down by gravity
+Left/right movement
+Rotation
+Lock piece
+Clear lines
+Score and level
+Next piece preview
+Rendering
+Input repeat polish
+Title/game over/high score
+
+That sequence reduces risk.
+
+Important simplifications for first version
+
+I strongly recommend these simplifications initially:
+
+only clockwise rotation
+no hard drop initially
+no fancy animation for line clears
+full board redraw instead of dirty rectangles
+entire-board scan for line clearing instead of optimized scan
+simple rand()%7
+
+Then optimize later.
+
+Example gameplay constants
+#define BOARD_W 10
+#define VISIBLE_H 20
+#define BOARD_H 22
+#define LINES_PER_LEVEL 10
+const unsigned short g_scoreTable[5] = {
+    0, 40, 100, 300, 1200
+};
+One design decision you should make now
+
+Pick one of these:
+
+Option 1: NES-like strict classic
+no wall kicks
+awkward rotations near walls
+simple random
+immediate lock
+Option 2: slightly friendlier retro
+no hold
+no ghost
+but allow a tiny horizontal shift on rotation if one side is blocked
+
+For “close to the original”, choose Option 1.
+
+My recommendation
+
+Implement a NES/Game Boy style Tetris, specifically:
+
+10×20 board
+7 tetrominoes
+one next piece
+simple random piece generation
+no hold
+no wall kicks
+classic line scoring
+level increases every 10 lines
+falling speed from lookup table
+C for logic, assembly for drawing/input
+
+That is realistic for the TIKI-100 and keeps the project controlled.
+
+Implementation plan summary
+Step 1
+
+Freeze the ruleset.
+
+Step 2
+
+Write pure C logic for:
+
+board
+pieces
+collision
+rotation
+lock
+clear
+score
+level
+Step 3
+
+Add a fixed-tick game loop.
+
+Step 4
+
+Write assembly rendering primitives.
+
+Step 5
+
+Integrate keyboard scanning and repeat handling.
+
+Step 6
+
+Tune feel and speed.
+
+Step 7
+
+Add title screen, high scores, sound.

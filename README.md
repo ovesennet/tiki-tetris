@@ -45,10 +45,9 @@ of its era.
 | **VRAM** | 32 KB, bank-switched into the lower 32K of address space |
 | **Sound** | YM2149 / AY-3-8910 PSG — 3 channels |
 | **Storage** | Dual 400K 5.25" floppy drives |
-| **OS** | CP/M 2.2 compatible, with custom BIOS and menu system |
+| **OS** | TIKO - CP/M 2.2 compatible, with custom ROM |
 
-The machine featured a custom BIOS with a distinctive startup menu (the "TIKI-menu")
-for launching applications from disk. Despite being a CP/M machine, it had
+Despite being a CP/M machine, it had
 surprisingly capable graphics and sound hardware for its time.
 
 ---
@@ -62,11 +61,8 @@ Tiki Tetris is a classic Tetris implementation featuring:
   AY-3-8910 PSG with two-voice harmony
 - **Sound effects** for moves, drops, line clears, and level ups (toggle with O)
 - **St. Basil's Cathedral** procedurally drawn on the title screen
-- **Gradient TETRIS logo** in classic red→orange→yellow→green block letters
 - **Statistics panel** showing piece counts with mini previews
-- **3D-effect board border** with shadow
 - **Top score** tracking across games
-- **Flicker-free** piece movement using delta-draw rendering
 
 ### Controls
 
@@ -118,7 +114,7 @@ Additional build options:
 
 ### Prerequisites
 
-1. **Djupdal TIKI-100 emulator** — place `tikiemul.exe` in the project root.
+1. **Djupdal TIKI-100 emulator** — place `tikiemul.exe` in the project root (included in the repo).
    The emulator configuration file `tikiemul.ini` is included.
 
 2. **TIKI-100 system ROM** — `tiki.rom` (included in the repo).

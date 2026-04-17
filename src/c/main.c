@@ -420,12 +420,76 @@ static uint8_t spawn_piece(void)
 
 /* ── Game logic ── */
 
+/* Delta-draw: move piece from old to new position without flicker.
+ * Only redraws cells that differ between old and new positions. */
+static void delta_move(uint8_t new_rot, int8_t new_x, int8_t new_y)
+{
+    uint16_t omask, nmask;
+    uint8_t r, c;
+    int8_t bx, by;
+    uint8_t old_cells[4][4];  /* 1 = old piece occupies this board cell */
+    uint8_t new_cells[4][4];  /* 1 = new piece occupies this board cell */
+    int8_t min_x, min_y, max_x, max_y;
+
+    /* Bounding box covering both old and new 4x4 grids */
+    min_x = g_cur.x < new_x ? g_cur.x : new_x;
+    min_y = g_cur.y < new_y ? g_cur.y : new_y;
+    max_x = g_cur.x > new_x ? g_cur.x : new_x;
+    max_y = g_cur.y > new_y ? g_cur.y : new_y;
+
+    /* Build old occupancy in bounding box coords */
+    omask = piece_get_mask(g_cur.type, g_cur.rot);
+    nmask = piece_get_mask(g_cur.type, new_rot);
+
+    /* Iterate over bounding box (max 5x5 for 1-cell moves) */
+    for (by = min_y; by < max_y + 4; by++) {
+        for (bx = min_x; bx < max_x + 4; bx++) {
+            uint8_t in_old = 0, in_new = 0;
+            int8_t ox, oy, nx, ny;
+
+            /* Check if (bx,by) is in old piece */
+            ox = bx - g_cur.x;
+            oy = by - g_cur.y;
+            if (ox >= 0 && ox < 4 && oy >= 0 && oy < 4) {
+                if (omask & ((uint16_t)0x8000 >> (oy * 4 + ox)))
+                    in_old = 1;
+            }
+
+            /* Check if (bx,by) is in new piece */
+            nx = bx - new_x;
+            ny = by - new_y;
+            if (nx >= 0 && nx < 4 && ny >= 0 && ny < 4) {
+                if (nmask & ((uint16_t)0x8000 >> (ny * 4 + nx)))
+                    in_new = 1;
+            }
+
+            if (in_old == in_new) continue;  /* no change */
+
+            if (bx < 0 || bx >= BOARD_W || by < HIDDEN_ROWS || by >= BOARD_ROWS)
+                continue;
+
+            if (in_old && !in_new) {
+                /* Cell vacated: draw black or board content */
+                if (board_get(bx, by) != PIECE_NONE)
+                    draw_cell((uint8_t)bx, (uint8_t)by, COL_WHITE);
+                else
+                    draw_cell((uint8_t)bx, (uint8_t)by, COL_BLACK);
+            } else {
+                /* Cell newly occupied: draw gem */
+                draw_cell((uint8_t)bx, (uint8_t)by, COL_WHITE);
+            }
+        }
+    }
+
+    g_cur.rot = new_rot;
+    g_cur.x = new_x;
+    g_cur.y = new_y;
+}
+
 static void do_move_left(void)
 {
     if (piece_can_place(g_cur.type, g_cur.rot, g_cur.x - 1, g_cur.y)) {
-        erase_piece(&g_cur);
-        g_cur.x--;
-        draw_piece(&g_cur);
+        delta_move(g_cur.rot, g_cur.x - 1, g_cur.y);
         sfx_move();
     }
 }
@@ -433,9 +497,7 @@ static void do_move_left(void)
 static void do_move_right(void)
 {
     if (piece_can_place(g_cur.type, g_cur.rot, g_cur.x + 1, g_cur.y)) {
-        erase_piece(&g_cur);
-        g_cur.x++;
-        draw_piece(&g_cur);
+        delta_move(g_cur.rot, g_cur.x + 1, g_cur.y);
         sfx_move();
     }
 }
@@ -445,9 +507,7 @@ static void do_rotate(void)
     uint8_t new_rot;
     new_rot = (g_cur.rot + 1) & 3;
     if (piece_can_place(g_cur.type, new_rot, g_cur.x, g_cur.y)) {
-        erase_piece(&g_cur);
-        g_cur.rot = new_rot;
-        draw_piece(&g_cur);
+        delta_move(new_rot, g_cur.x, g_cur.y);
         sfx_move();
     }
 }
@@ -455,9 +515,7 @@ static void do_rotate(void)
 static uint8_t do_move_down(void)
 {
     if (piece_can_place(g_cur.type, g_cur.rot, g_cur.x, g_cur.y + 1)) {
-        erase_piece(&g_cur);
-        g_cur.y++;
-        draw_piece(&g_cur);
+        delta_move(g_cur.rot, g_cur.x, g_cur.y + 1);
         return 1;
     }
     return 0;

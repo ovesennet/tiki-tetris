@@ -32,7 +32,7 @@ extern uint8_t  gfx_height;
 /* Tile blit params */
 extern uint16_t tile_px;
 extern uint16_t tile_py;
-extern uint8_t  tile_data[50];
+extern uint16_t tile_src;
 
 /* Palette */
 static const char palette[16] = {
@@ -148,20 +148,9 @@ void vid_draw_text_rotcw(uint16_t x, uint16_t y, const char *str, uint8_t colour
 
 void vid_blit_tile(uint16_t x, uint16_t y, uint8_t *tile)
 {
-    uint8_t i;
     tile_px = x;
     tile_py = y;
-    for (i = 0; i < 50; i++)
-        tile_data[i] = tile[i];
+    tile_src = (uint16_t)tile;
     vid_blit_tile_gfx();
 }
 
-void vid_set_palette_entry(uint8_t index, uint8_t rgb)
-{
-    char buf[16];
-    uint8_t i;
-    for (i = 0; i < 16; i++)
-        buf[i] = palette[i];
-    buf[index] = (char)rgb;
-    gr_setpalette(16, buf);
-}

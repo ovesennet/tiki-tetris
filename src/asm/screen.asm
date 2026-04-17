@@ -406,11 +406,11 @@ fr_loop:
 
     PUBLIC  _tile_px
     PUBLIC  _tile_py
-    PUBLIC  _tile_data
+    PUBLIC  _tile_src
 
 _tile_px:      defs 2
 _tile_py:      defs 2
-_tile_data:    defs 50      ; 10 rows x 5 bytes (pre-rendered)
+_tile_src:     defs 2       ; pointer to 50-byte tile data in low memory
 
     SECTION code_graphics
 
@@ -432,13 +432,25 @@ _vid_blit_tile_gfx:
     jr      nc, bt_noc
     inc     h
 bt_noc:
-    ; HL = VRAM destination address
-    ; DE = source tile data (high mem buffer)
+    ; HL = VRAM dest, need to copy source ptr before bank switch
+    ; Copy 50 bytes from source (low mem) to stack-local area? No —
+    ; read source row by row: read 5 bytes before each row write.
+    ; Actually: bank switch once, source is in low memory (below $8000)
+    ; but VRAM is also mapped to $0000-$7FFF. Source will be hidden!
+    ; Must copy tile data to high memory first.
+    ; Use _tile_data scratch in bss_graphics.
+    push    hl
+    ld      hl, (_tile_src)
+    ld      de, _tile_tmp
+    ld      bc, 50
+    ldir
+    pop     hl
+
     push    hl
     call    swapgfxbk
     pop     hl
 
-    ld      de, _tile_data
+    ld      de, _tile_tmp
     ld      b, 10           ; 10 rows
 
 bt_row:
@@ -480,6 +492,9 @@ bt_nc:
 
     call    swapgfxbk1
     ret
+
+    SECTION bss_graphics
+_tile_tmp:     defs 50      ; scratch in high memory for tile copy
 
 ; ============================================================
 ; Font data — 5x7 pixel glyphs

@@ -26,7 +26,6 @@ static const uint16_t g_score_table[] = {
 };
 
 /* ── Game state ── */
-static uint8_t  g_state;
 static uint32_t g_score;
 static uint32_t g_top_score;
 static uint16_t g_lines;
@@ -188,9 +187,7 @@ static void build_gem_tile(void)
 /* Build the black (empty) tile */
 static void build_black_tile(void)
 {
-    uint8_t i;
-    for (i = 0; i < 50; i++)
-        g_black_tile[i] = 0;
+    memset(g_black_tile, 0, 50);
 }
 
 /* Draw a gem-style cell at board position (bx, by).
@@ -228,20 +225,30 @@ static void draw_mini_piece(uint16_t px, uint16_t py, uint8_t type, uint8_t colo
     }
 }
 
-/* Draw all statistics */
+/* Draw all statistics mini pieces (called once) */
+static void draw_stats_pieces(void)
+{
+    uint8_t i;
+    uint16_t y;
+    static const uint8_t piece_colours[] = {
+        0, COL_BRCYAN, COL_YELLOW, COL_PINK,
+        COL_BRGREEN, COL_BRRED, COL_BRBLUE, COL_ORANGE
+    };
+    for (i = 1; i <= NUM_PIECES; i++) {
+        y = 40 + (uint16_t)(i - 1) * 20;
+        draw_mini_piece(STATS_PX_X, y, i, piece_colours[i]);
+    }
+}
+
+/* Update statistics counters only */
 static void draw_stats(void)
 {
     uint8_t i;
     uint16_t y;
     char buf[6];
-    static const uint8_t piece_colours[] = {
-        0, COL_BRCYAN, COL_YELLOW, COL_PINK,
-        COL_BRGREEN, COL_BRRED, COL_BRBLUE, COL_ORANGE
-    };
 
     for (i = 1; i <= NUM_PIECES; i++) {
         y = 40 + (uint16_t)(i - 1) * 20;
-        draw_mini_piece(STATS_PX_X, y, i, piece_colours[i]);
         u16_to_str(g_stats[i], buf);
         erase_text(STATS_PX_X + 20, y + 5, 3);
         draw_text(STATS_PX_X + 20, y + 5, buf, COL_WHITE);
@@ -330,50 +337,6 @@ static void draw_piece(Piece *p)
     }
 }
 
-/* After erasing + drawing piece at new position, repair any board cells
- * that were under the OLD position but are NOT under the NEW position. */
-static void repair_board(Piece *oldp, Piece *newp)
-{
-    uint16_t omask, nmask;
-    uint8_t r, c;
-    int8_t bx, by;
-
-    omask = piece_get_mask(oldp->type, oldp->rot);
-    for (r = 0; r < 4; r++) {
-        for (c = 0; c < 4; c++) {
-            if (omask & 0x8000) {
-                bx = oldp->x + (int8_t)c;
-                by = oldp->y + (int8_t)r;
-                /* Check if this cell is NOT covered by the new piece */
-                if (bx >= 0 && bx < BOARD_W && by >= HIDDEN_ROWS && by < BOARD_ROWS) {
-                    /* Is there a locked block here? */
-                    if (board_get(bx, by) != PIECE_NONE) {
-                        /* Is the new piece NOT covering this cell? */
-                        int8_t dx = bx - newp->x;
-                        int8_t dy = by - newp->y;
-                        uint8_t covered = 0;
-                        if (dx >= 0 && dx < 4 && dy >= 0 && dy < 4) {
-                            nmask = piece_get_mask(newp->type, newp->rot);
-                            nmask >>= (uint8_t)((3 - dy) * 4 + (3 - dx));
-                            covered = nmask & 1;
-                        }
-                        if (!covered) {
-                            draw_cell((uint8_t)bx, (uint8_t)by, COL_WHITE);
-                        }
-                    }
-                }
-            }
-            omask <<= 1;
-        }
-    }
-}
-
-/* Draw a gem tile at arbitrary pixel position (for preview) */
-static void draw_gem_at(uint16_t px, uint16_t py)
-{
-    vid_blit_tile(px, py, g_gem_tile);
-}
-
 /* Draw the next piece preview */
 static void draw_next_piece(void)
 {
@@ -389,45 +352,49 @@ static void draw_next_piece(void)
             if (mask & 0x8000) {
                 px = NEXT_PX_X + (uint16_t)c * CELL_SIZE;
                 py = NEXT_PX_Y + (uint16_t)r * CELL_SIZE;
-                draw_gem_at(px, py);
+                vid_blit_tile(px, py, g_gem_tile);
             }
             mask <<= 1;
         }
     }
 }
 
-/* Format and display score info */
+/* Draw the info panel labels (called once) */
+static void draw_info_labels(void)
+{
+    uint16_t x, y;
+    x = INFO_PX_X;
+    y = INFO_PX_Y;
+    draw_text(x, y, "SCORE", COL_WHITE);
+    draw_text(x, y + 26, "LINES", COL_WHITE);
+    draw_text(x, y + 52, "LEVEL", COL_WHITE);
+    draw_text(x, y + 78, "TOP", COL_WHITE);
+}
+
+/* Update the info panel values only */
 static void draw_info(void)
 {
     char buf[12];
     uint16_t x, y;
 
     x = INFO_PX_X;
-    y = INFO_PX_Y;
+    y = INFO_PX_Y + 10;
 
-    draw_text(x, y, "SCORE", COL_WHITE);
-    y += 10;
     u32_to_str(g_score, buf);
     erase_text(x, y, 8);
     draw_text(x, y, buf, COL_YELLOW);
 
-    y += 16;
-    draw_text(x, y, "LINES", COL_WHITE);
-    y += 10;
+    y += 26;
     u16_to_str(g_lines, buf);
     erase_text(x, y, 5);
     draw_text(x, y, buf, COL_YELLOW);
 
-    y += 16;
-    draw_text(x, y, "LEVEL", COL_WHITE);
-    y += 10;
+    y += 26;
     u16_to_str((uint16_t)g_level, buf);
     erase_text(x, y, 3);
     draw_text(x, y, buf, COL_YELLOW);
 
-    y += 16;
-    draw_text(x, y, "TOP", COL_WHITE);
-    y += 10;
+    y += 26;
     u32_to_str(g_top_score, buf);
     erase_text(x, y, 8);
     draw_text(x, y, buf, COL_BRCYAN);
@@ -699,24 +666,18 @@ static void draw_tetris_logo(uint16_t start_y)
         COL_RED, COL_BRRED, COL_ORANGE, COL_YELLOW, COL_GREEN
     };
     uint8_t li, row, col;
-    uint16_t lx, y0, px, py;
+    uint16_t lx, px, py;
     uint32_t bits;
-
-    /* 6 letters × 18px + 5 gaps × 4px = 128px. Centre horizontally */
-    y0 = start_y;
 
     for (li = 0; li < 6; li++) {
         lx = 64 + (uint16_t)li * 22;
         for (row = 0; row < 5; row++) {
             bits = letters[li][row];
-            py = y0 + (uint16_t)row * 4;
+            py = start_y + (uint16_t)row * 4;
             for (col = 0; col < 18; col++) {
                 if (bits & ((uint32_t)1 << (17 - col))) {
                     px = lx + (uint16_t)col;
-                    vid_plot(px, py, cols[row]);
-                    vid_plot(px, py + 1, cols[row]);
-                    vid_plot(px, py + 2, cols[row]);
-                    vid_plot(px, py + 3, cols[row]);
+                    vid_vline(px, py, py + 3, cols[row]);
                 }
             }
         }
@@ -812,6 +773,7 @@ static void game_init(void)
     draw_board();
     draw_border();
     draw_stats_header();
+    draw_stats_pieces();
     draw_stats();
 
     /* Side branding */
@@ -821,6 +783,7 @@ static void game_init(void)
     draw_tetris_logo(222);
 
     draw_text(NEXT_PX_X, NEXT_PX_Y - 12, "NEXT", COL_WHITE);
+    draw_info_labels();
     draw_info();
 
     spawn_piece();

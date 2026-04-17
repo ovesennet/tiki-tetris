@@ -13,9 +13,6 @@ void board_init(void);
 /* Get cell value at (x, y). Returns PIECE_NONE if empty or out of bounds. */
 uint8_t board_get(int8_t x, int8_t y);
 
-/* Set cell value at (x, y). */
-void board_set(uint8_t x, uint8_t y, uint8_t val);
-
 /* Lock a piece into the board */
 void board_lock_piece(uint8_t type, uint8_t rot, int8_t px, int8_t py);
 

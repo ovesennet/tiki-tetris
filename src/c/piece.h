@@ -26,7 +26,6 @@ uint16_t piece_get_mask(uint8_t type, uint8_t rot);
  * Returns 1 if valid, 0 if collision. */
 uint8_t piece_can_place(uint8_t type, uint8_t rot, int8_t x, int8_t y);
 
-/* Get the colour index for a piece type */
-uint8_t piece_colour(uint8_t type);
+
 
 #endif /* PIECE_H */

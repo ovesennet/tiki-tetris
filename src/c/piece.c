@@ -31,27 +31,10 @@ static const uint16_t tetro_masks[7][4] = {
     { 0x0E20, 0x44C0, 0x8E00, 0xC440 }
 };
 
-/* Piece colours: I=cyan, O=yellow, T=magenta, S=green, Z=red, J=blue, L=orange */
-static const uint8_t piece_colours[7] = {
-    COL_BRCYAN,   /* I */
-    COL_YELLOW,   /* O */
-    COL_PINK,     /* T */
-    COL_GREEN,    /* S */
-    COL_RED,      /* Z */
-    COL_BLUE,     /* J */
-    COL_ORANGE    /* L */
-};
-
 uint16_t piece_get_mask(uint8_t type, uint8_t rot)
 {
     if (type < 1 || type > 7) return 0;
     return tetro_masks[type - 1][rot & 3];
-}
-
-uint8_t piece_colour(uint8_t type)
-{
-    if (type < 1 || type > 7) return COL_WHITE;
-    return piece_colours[type - 1];
 }
 
 uint8_t piece_can_place(uint8_t type, uint8_t rot, int8_t px, int8_t py)

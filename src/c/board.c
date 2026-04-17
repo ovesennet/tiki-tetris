@@ -20,12 +20,6 @@ uint8_t board_get(int8_t x, int8_t y)
     return g_board[y][x];
 }
 
-void board_set(uint8_t x, uint8_t y, uint8_t val)
-{
-    if (x < BOARD_W && y < BOARD_ROWS)
-        g_board[y][x] = val;
-}
-
 void board_lock_piece(uint8_t type, uint8_t rot, int8_t px, int8_t py)
 {
     uint16_t mask;

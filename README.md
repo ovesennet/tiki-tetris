@@ -11,8 +11,8 @@ A Tetris game for the **TIKI-100** computer, written in C and Z80 assembly.
 
 The easiest way to play is with the included emulator on Windows:
 
-1. Launch **`tikiemul.exe`** — it will boot from `dsk/work.dsk` automatically
-2. Select **T TIKITETRIS** from the TIKI-menu
+1. Launch **`tikiemul.exe`** — then load the dsk/tetris.dsk floppy disk image file
+2. Select **T TIKITETRIS** from the TIKI-menu to start the game
 
 ### Running on real hardware
 

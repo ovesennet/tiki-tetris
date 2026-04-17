@@ -76,5 +76,6 @@
 #define KEY_DROP       ' '
 #define KEY_QUIT       'q'
 #define KEY_PAUSE      'p'
+#define KEY_SOUND      'o'
 
 #endif /* DEFS_H */

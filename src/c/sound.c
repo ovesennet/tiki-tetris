@@ -40,6 +40,9 @@
 /* ── RNG counter (extern from main.c) ── */
 extern uint16_t g_rng;
 
+/* Sound enabled flag (default on) */
+uint8_t g_sound_on = 1;
+
 /* ────────────────────────────────────── */
 
 void sound_init(void)
@@ -58,6 +61,7 @@ void sound_off(void)
 
 void sfx_line_clear(void)
 {
+    if (!g_sound_on) return;
     psg_channels(chan0, chanNone);
     psg_tone(0, NOTE_E5);
     psg_volume(0, 14);
@@ -69,6 +73,7 @@ void sfx_line_clear(void)
 
 void sfx_level_up(void)
 {
+    if (!g_sound_on) return;
     /* Rising arpeggio: C5 → E5 → G5 → C6 */
     static const uint16_t periods[] = { NOTE_C5, NOTE_E5, NOTE_G5, NOTE_C6 };
     uint8_t i;
@@ -78,6 +83,31 @@ void sfx_level_up(void)
         psg_volume(0, 14);
         delay(1000);
     }
+    sound_off();
+}
+
+void sfx_drop(void)
+{
+    if (!g_sound_on) return;
+    /* Short low thud: quick descending tone */
+    psg_channels(chan0, chanNone);
+    psg_tone(0, NOTE_A3);
+    psg_volume(0, 13);
+    delay(600);
+    psg_tone(0, 600);  /* very low */
+    delay(400);
+    sound_off();
+}
+
+void sfx_move(void)
+{
+    if (!g_sound_on) return;
+    /* Tiny click/tick */
+    psg_channels(chan0, chanNone);
+    psg_tone(0, NOTE_C6);
+    psg_volume(0, 8);
+    delay(200);
+    sound_off();
     sound_off();
 }
 
@@ -127,7 +157,7 @@ uint8_t play_title_music(void)
     psg_channels(chan0 | chan1, chanNone);
 
     for (i = 0; i < MELODY_LEN; i++) {
-        if (g_melody[i].period == REST) {
+        if (!g_sound_on || g_melody[i].period == REST) {
             psg_volume(0, 0);
             psg_volume(1, 0);
         } else {

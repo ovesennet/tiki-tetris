@@ -459,6 +459,7 @@ static void do_move_left(void)
         erase_piece(&g_cur);
         g_cur.x--;
         draw_piece(&g_cur);
+        sfx_move();
     }
 }
 
@@ -468,6 +469,7 @@ static void do_move_right(void)
         erase_piece(&g_cur);
         g_cur.x++;
         draw_piece(&g_cur);
+        sfx_move();
     }
 }
 
@@ -479,6 +481,7 @@ static void do_rotate(void)
         erase_piece(&g_cur);
         g_cur.rot = new_rot;
         draw_piece(&g_cur);
+        sfx_move();
     }
 }
 
@@ -544,26 +547,196 @@ static void do_hard_drop(void)
         g_score++;
     }
     draw_piece(&g_cur);
+    sfx_drop();
     lock_and_advance();
+}
+
+/* ── St. Basil's Cathedral for title screen ── */
+static void draw_cathedral(void)
+{
+    uint8_t i;
+
+    /* ── Central spire + cross ── */
+    vid_fill_rect(126, 8, 4, 4, COL_YELLOW);    /* cross top */
+    vid_fill_rect(122, 12, 12, 3, COL_YELLOW);   /* cross arm */
+    vid_fill_rect(126, 12, 4, 10, COL_YELLOW);   /* cross post */
+    vid_fill_rect(124, 22, 8, 10, COL_YELLOW);   /* spire tip */
+    /* Central onion dome (yellow/green) */
+    vid_fill_rect(118, 32, 20, 4, COL_YELLOW);
+    vid_fill_rect(114, 36, 28, 4, COL_GREEN);
+    vid_fill_rect(110, 40, 36, 4, COL_YELLOW);
+    vid_fill_rect(108, 44, 40, 5, COL_GREEN);
+    vid_fill_rect(106, 49, 44, 4, COL_YELLOW);
+    vid_fill_rect(108, 53, 40, 3, COL_GREEN);
+    vid_fill_rect(112, 56, 32, 3, COL_YELLOW);
+    vid_fill_rect(116, 59, 24, 2, COL_GREEN);
+    /* Central tower */
+    vid_fill_rect(112, 61, 32, 30, COL_RED);
+    vid_fill_rect(116, 65, 4, 8, COL_YELLOW);   /* window */
+    vid_fill_rect(124, 65, 4, 8, COL_YELLOW);
+    vid_fill_rect(136, 65, 4, 8, COL_YELLOW);
+
+    /* ── Left dome 1 (large, red/green stripes) ── */
+    vid_fill_rect(78, 42, 6, 8, COL_YELLOW);    /* spire */
+    vid_fill_rect(72, 50, 18, 4, COL_RED);
+    vid_fill_rect(68, 54, 26, 3, COL_GREEN);
+    vid_fill_rect(66, 57, 30, 4, COL_RED);
+    vid_fill_rect(64, 61, 34, 4, COL_GREEN);
+    vid_fill_rect(66, 65, 30, 3, COL_RED);
+    vid_fill_rect(70, 68, 22, 2, COL_GREEN);
+    /* Left tower 1 */
+    vid_fill_rect(70, 70, 22, 21, COL_RED);
+    vid_fill_rect(74, 74, 4, 6, COL_YELLOW);
+    vid_fill_rect(84, 74, 4, 6, COL_YELLOW);
+
+    /* ── Right dome 1 (large, green/red stripes) ── */
+    vid_fill_rect(172, 42, 6, 8, COL_YELLOW);
+    vid_fill_rect(166, 50, 18, 4, COL_GREEN);
+    vid_fill_rect(162, 54, 26, 3, COL_RED);
+    vid_fill_rect(160, 57, 30, 4, COL_GREEN);
+    vid_fill_rect(158, 61, 34, 4, COL_RED);
+    vid_fill_rect(160, 65, 30, 3, COL_GREEN);
+    vid_fill_rect(164, 68, 22, 2, COL_RED);
+    /* Right tower 1 */
+    vid_fill_rect(164, 70, 22, 21, COL_RED);
+    vid_fill_rect(168, 74, 4, 6, COL_YELLOW);
+    vid_fill_rect(178, 74, 4, 6, COL_YELLOW);
+
+    /* ── Left dome 2 (small, green) ── */
+    vid_fill_rect(50, 56, 4, 6, COL_YELLOW);
+    vid_fill_rect(44, 62, 16, 3, COL_GREEN);
+    vid_fill_rect(42, 65, 20, 4, COL_RED);
+    vid_fill_rect(44, 69, 16, 3, COL_GREEN);
+    vid_fill_rect(48, 72, 8, 2, COL_RED);
+    /* Left tower 2 */
+    vid_fill_rect(44, 74, 16, 17, COL_ORANGE);
+    vid_fill_rect(48, 77, 4, 5, COL_YELLOW);
+
+    /* ── Right dome 2 (small, red) ── */
+    vid_fill_rect(202, 56, 4, 6, COL_YELLOW);
+    vid_fill_rect(196, 62, 16, 3, COL_RED);
+    vid_fill_rect(194, 65, 20, 4, COL_GREEN);
+    vid_fill_rect(196, 69, 16, 3, COL_RED);
+    vid_fill_rect(200, 72, 8, 2, COL_GREEN);
+    /* Right tower 2 */
+    vid_fill_rect(196, 74, 16, 17, COL_ORANGE);
+    vid_fill_rect(204, 77, 4, 5, COL_YELLOW);
+
+    /* ── Building base ── */
+    vid_fill_rect(38, 91, 180, 14, COL_RED);
+    /* Base windows */
+    for (i = 0; i < 8; i++) {
+        vid_fill_rect(46 + i * 22, 94, 6, 8, COL_YELLOW);
+    }
+    /* Foundation */
+    vid_fill_rect(34, 105, 188, 6, COL_ORANGE);
+    vid_fill_rect(30, 111, 196, 4, COL_YELLOW);
+
+    /* ── Ground line ── */
+    vid_hline(20, 236, 115, COL_GREEN);
+    vid_hline(20, 236, 116, COL_GREEN);
+}
+
+/* Classic TETRIS block logo with red→orange→yellow→green gradient.
+ * Each letter is 18px wide × 20px tall (5 rows of 4px each).
+ * Encoded as 5 rows, each row a bitmask of 18 columns. */
+
+/* Letter bitmasks: each uint32_t has bits 17..0 = columns L→R */
+#define LB(b17,b16,b15,b14,b13,b12,b11,b10,b9,b8,b7,b6,b5,b4,b3,b2,b1,b0) \
+    ((uint32_t)( \
+    ((uint32_t)(b17)<<17)|((uint32_t)(b16)<<16)|((uint32_t)(b15)<<15)|((uint32_t)(b14)<<14)| \
+    ((uint32_t)(b13)<<13)|((uint32_t)(b12)<<12)|((uint32_t)(b11)<<11)|((uint32_t)(b10)<<10)| \
+    ((uint32_t)(b9)<<9)|((uint32_t)(b8)<<8)|((uint32_t)(b7)<<7)|((uint32_t)(b6)<<6)| \
+    ((uint32_t)(b5)<<5)|((uint32_t)(b4)<<4)|((uint32_t)(b3)<<3)|((uint32_t)(b2)<<2)| \
+    ((uint32_t)(b1)<<1)|((uint32_t)(b0)) ))
+
+static const uint32_t letter_T[] = {
+    LB(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),
+    LB(0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0),
+    LB(0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0),
+    LB(0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0),
+    LB(0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0),
+};
+
+static const uint32_t letter_E[] = {
+    LB(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),
+    LB(1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
+    LB(1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0),
+    LB(1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
+    LB(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),
+};
+
+static const uint32_t letter_R[] = {
+    LB(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0),
+    LB(1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,0),
+    LB(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0),
+    LB(1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,0,0),
+    LB(1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,0),
+};
+
+static const uint32_t letter_I[] = {
+    LB(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),
+    LB(0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0),
+    LB(0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0),
+    LB(0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0),
+    LB(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),
+};
+
+static const uint32_t letter_S[] = {
+    LB(0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1),
+    LB(1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0),
+    LB(0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0),
+    LB(0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1),
+    LB(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0),
+};
+
+static void draw_tetris_logo(uint16_t start_y)
+{
+    static const uint32_t * const letters[] = {
+        letter_T, letter_E, letter_T, letter_R, letter_I, letter_S
+    };
+    static const uint8_t cols[] = {
+        COL_RED, COL_BRRED, COL_ORANGE, COL_YELLOW, COL_GREEN
+    };
+    uint8_t li, row, col;
+    uint16_t lx, y0, px, py;
+    uint32_t bits;
+
+    /* 6 letters × 18px + 5 gaps × 4px = 128px. Centre horizontally */
+    y0 = start_y;
+
+    for (li = 0; li < 6; li++) {
+        lx = 64 + (uint16_t)li * 22;
+        for (row = 0; row < 5; row++) {
+            bits = letters[li][row];
+            py = y0 + (uint16_t)row * 4;
+            for (col = 0; col < 18; col++) {
+                if (bits & ((uint32_t)1 << (17 - col))) {
+                    px = lx + (uint16_t)col;
+                    vid_plot(px, py, cols[row]);
+                    vid_plot(px, py + 1, cols[row]);
+                    vid_plot(px, py + 2, cols[row]);
+                    vid_plot(px, py + 3, cols[row]);
+                }
+            }
+        }
+    }
 }
 
 /* ── Title screen ── */
 static void show_title(void)
 {
-    char buf[12];
     vid_clear();
-    draw_text_centred(60, "TIKI TETRIS V0.8", COL_YELLOW);
-    draw_text_centred(80, "BY ARCTIC RETRO", COL_WHITE);
-    if (g_top_score > 0) {
-        draw_text_centred(100, "TOP", COL_WHITE);
-        u32_to_str(g_top_score, buf);
-        draw_text_centred(112, buf, COL_YELLOW);
-    }
-    draw_text_centred(130, "A-LEFT  D-RIGHT", COL_BRCYAN);
-    draw_text_centred(144, "W-ROTATE  S-DROP", COL_BRCYAN);
-    draw_text_centred(158, "SPACE-HARD DROP", COL_BRCYAN);
-    draw_text_centred(172, "P-PAUSE  Q-QUIT", COL_BRCYAN);
-    draw_text_centred(192, "PRESS ANY KEY", COL_WHITE);
+
+    draw_cathedral();
+    draw_tetris_logo(122);
+
+    draw_text_centred(148, "BY ARCTIC RETRO", COL_WHITE);
+    draw_text_centred(170, "A-LEFT  D-RIGHT", COL_BRCYAN);
+    draw_text_centred(182, "W-ROTATE  S-DROP", COL_BRCYAN);
+    draw_text_centred(194, "SPACE-HARD DROP", COL_BRCYAN);
+    draw_text_centred(206, "P-PAUSE  O-SOUND", COL_BRCYAN);
+    draw_text_centred(246, "PRESS ANY KEY", COL_WHITE);
 
     /* Play music in a loop, seed RNG from wait time */
     while (!play_title_music()) {
@@ -644,6 +817,9 @@ static void game_init(void)
     /* Side branding */
     vid_draw_text_rotcw(3, 16, "TIKI TETRIS BY ARCTIC RETRO", COL_ORANGE);
 
+    /* TETRIS logo below the board */
+    draw_tetris_logo(222);
+
     draw_text(NEXT_PX_X, NEXT_PX_Y - 12, "NEXT", COL_WHITE);
     draw_info();
 
@@ -685,6 +861,10 @@ void main(void)
                         break;
                     case KEY_DROP:
                         do_hard_drop();
+                        break;
+                    case KEY_SOUND:
+                        g_sound_on ^= 1;
+                        if (!g_sound_on) sound_off();
                         break;
                     case KEY_QUIT:
                         g_game_over = 1;

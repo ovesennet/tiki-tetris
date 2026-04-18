@@ -4,10 +4,10 @@
  * Controls: A=left, D=right, W=rotate, S=soft drop, SPACE=hard drop, Q=quit
  */
 
-#include <conio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "defs.h"
+#include "input.h"
 #include "sound.h"
 #include "video.h"
 #include "font.h"
@@ -42,6 +42,12 @@ static Piece    g_cur;
 /* Timing */
 static uint8_t  g_fall_timer;
 static uint16_t g_tick;
+
+/* DAS (Delayed Auto Shift) for left/right */
+#define DAS_DELAY  12   /* frames before auto-repeat starts */
+#define DAS_REPEAT  3   /* frames between repeats */
+static uint8_t  g_das_timer;
+static uint8_t  g_das_charged;
 
 /* ── Gem colour schemes: { bright, dark } — white highlight on all ── */
 #define NUM_SCHEMES 6
@@ -757,17 +763,27 @@ static void show_title(void)
     draw_text_centred(206, "P-PAUSE  O-SOUND", COL_BRCYAN);
     draw_text_centred(246, "PRESS ANY KEY", COL_WHITE);
 
+    /* Wait for all keys to be released (debounced) */
+    {
+        uint8_t clean = 0;
+        while (clean < 20) {
+            input_poll();
+            if (input_any()) clean = 0;
+            else             clean++;
+        }
+    }
+
     /* Play music in a loop, seed RNG from wait time */
     while (!play_title_music()) {
         /* loop melody until keypress */
     }
-    {
-        char ch = getch();
-        if (ch >= 'A' && ch <= 'Z') ch += 32;
-        if (ch == KEY_QUIT) {
-            vid_shutdown();
-            exit(0);
-        }
+    /* Drain the key that stopped the music */
+    do { input_poll(); } while (input_any());
+    /* Wait a moment then check for quit */
+    input_poll();
+    if (input_held(KBIT_QUIT)) {
+        vid_shutdown();
+        exit(0);
     }
     if (g_rng == 0) g_rng = 12345;
 }
@@ -806,8 +822,7 @@ static void show_game_over(void)
     u32_to_str(g_score, buf);
     draw_text_centred(130, buf, COL_YELLOW);
     draw_text_centred(150, "PRESS ANY KEY", COL_WHITE);
-    while (!kbhit()) ;
-    getch();
+    input_wait_key();
 }
 
 /* ── Init a new game ── */
@@ -818,6 +833,8 @@ static void game_init(void)
     g_level = 0;
     g_game_over = 0;
     g_tick = 0;
+    g_das_timer = 0;
+    g_das_charged = 0;
     g_prev_scheme = 255;
     pick_scheme();
     build_black_tile();
@@ -853,9 +870,8 @@ static void game_init(void)
 /* ── Main loop ── */
 void main(void)
 {
-    char key;
-
     vid_init();
+    input_init();
     sound_init();
 
     while (1) {
@@ -864,46 +880,53 @@ void main(void)
 
         /* Play loop */
         while (!g_game_over) {
-            /* Input */
-            if (kbhit()) {
-                key = getch();
-                if (key >= 'A' && key <= 'Z') key += 32; /* tolower */
+            /* Input: drain buffer, act on last key only */
+            input_poll();
 
-                switch (key) {
-                    case KEY_LEFT:   do_move_left();  break;
-                    case KEY_RIGHT:  do_move_right(); break;
-                    case KEY_ROTATE: do_rotate();     break;
-                    case KEY_DOWN:
-                        /* Soft drop: move down one, add 1 point, reset timer */
-                        if (do_move_down()) {
-                            g_score++;
-                        }
-                        g_fall_timer = get_drop_delay();
-                        break;
-                    case KEY_DROP:
-                        do_hard_drop();
-                        break;
-                    case KEY_SOUND:
-                        g_sound_on ^= 1;
-                        if (!g_sound_on) sound_off();
-                        break;
-                    case KEY_QUIT:
-                        g_game_over = 1;
-                        vid_shutdown();
-                        return;
-                    case KEY_PAUSE:
-                        draw_text_centred(120, "PAUSED", COL_WHITE);
-                        /* Wait until P is pressed again */
-                        for (;;) {
-                            while (!kbhit()) ;
-                            key = getch();
-                            if (key >= 'A' && key <= 'Z') key += 32;
-                            if (key == KEY_PAUSE) break;
-                        }
-                        /* Redraw over pause text */
-                        vid_fill_rect(0, 120, 255, FONT_CH, COL_BLACK);
-                        break;
+            /* Left/right with DAS */
+            if (input_held(KBIT_LEFT) || input_held(KBIT_RIGHT)) {
+                if (input_pressed(KBIT_LEFT) || input_pressed(KBIT_RIGHT)) {
+                    /* First press: move immediately, start DAS timer */
+                    if (input_pressed(KBIT_LEFT))  do_move_left();
+                    if (input_pressed(KBIT_RIGHT)) do_move_right();
+                    g_das_timer = DAS_DELAY;
+                    g_das_charged = 0;
+                } else {
+                    /* Held: count down, then auto-repeat */
+                    if (g_das_timer > 0) {
+                        g_das_timer--;
+                    } else {
+                        if (input_held(KBIT_LEFT))  do_move_left();
+                        if (input_held(KBIT_RIGHT)) do_move_right();
+                        g_das_timer = DAS_REPEAT;
+                        g_das_charged = 1;
+                    }
                 }
+            } else {
+                g_das_timer = 0;
+                g_das_charged = 0;
+            }
+            if (input_pressed(KBIT_ROT))   do_rotate();
+            if (input_held(KBIT_DOWN)) {
+                if (do_move_down()) g_score++;
+                g_fall_timer = get_drop_delay();
+            }
+            if (input_pressed(KBIT_DROP))  do_hard_drop();
+            if (input_pressed(KBIT_SOUND)) {
+                g_sound_on ^= 1;
+                if (!g_sound_on) sound_off();
+            }
+            if (input_pressed(KBIT_QUIT)) {
+                g_game_over = 1;
+                vid_shutdown();
+                return;
+            }
+            if (input_pressed(KBIT_PAUSE)) {
+                draw_text_centred(120, "PAUSED", COL_WHITE);
+                /* Wait for release then press of P */
+                do { input_poll(); } while (input_held(KBIT_PAUSE));
+                do { input_poll(); } while (!input_pressed(KBIT_PAUSE));
+                vid_fill_rect(0, 120, 255, FONT_CH, COL_BLACK);
             }
 
             /* Gravity */

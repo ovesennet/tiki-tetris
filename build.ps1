@@ -89,13 +89,15 @@ if ($Hello) {
         "$SrcDir\font.c",
         "$SrcDir\board.c",
         "$SrcDir\piece.c",
-        "$SrcDir\sound.c"
+        "$SrcDir\sound.c",
+        "$SrcDir\input.c"
     )
     
     # Assembly source files (placed in code_graphics / high memory)
     $asmDir = "$ProjectRoot\src\asm"
     $asmFiles = @(
-        "$asmDir\screen.asm"
+        "$asmDir\screen.asm",
+        "$asmDir\keyboard.asm"
     )
     
     # Verify all source files exist

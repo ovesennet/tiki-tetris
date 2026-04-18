@@ -5,9 +5,9 @@
  * All tone periods are pre-computed integers to avoid float math.
  */
 
-#include <conio.h>
+#include <stdint.h>
 #include <arch/tiki100.h>
-#include "sound.h"
+#include "sound.h"\n\nextern uint8_t kbd_scan(void);
 
 /* ── Note period table (100000 / frequency) ── */
 /* Octave 3 */
@@ -170,12 +170,13 @@ uint8_t play_title_music(void)
         }
         /* Check for keypress in chunks — larger steps = steadier tempo */
         for (d = 0; d < g_melody[i].dur; d += 600) {
-            if (kbhit()) {
+            g_rng++;
+            delay(600);
+            kbd_scan();          /* discard first scan (port may be stale) */
+            if (kbd_scan()) {    /* real check */
                 sound_off();
                 return 1;
             }
-            g_rng++;
-            delay(600);
         }
     }
     sound_off();

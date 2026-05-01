@@ -12,12 +12,12 @@ A Tetris game for the **TIKI-100** computer, written in C and Z80 assembly.
 
 The easiest way to play is with the included emulator on Windows:
 
-1. Launch **`tikiemul.exe`** — then load the dsk/tetris.dsk floppy disk image file
+1. Launch **`tikiemul.exe`** — then load the dsk/work.dsk floppy disk image file
 2. Select **T TIKITETRIS** from the TIKI-menu to start the game
 
 ### Running on real hardware
 
-The `dsk/tetris.dsk` image is a standard TIKI-100 400K floppy format and can
+The `dsk/work.dsk` image is a standard TIKI-100 400K floppy format and can
 be used on a real machine:
 
 - **Gotek floppy emulator:** Copy the `.dsk` file to a USB stick and load it

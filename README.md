@@ -25,7 +25,7 @@ be used on a real machine:
 - **Real 400K floppy:** Boot the TIKI-100 from the Gotek, then use the
   built-in **RÅKOPI** program to copy the disk image to a physical 5.25"
   floppy disk
-
+- You can also use a serial connection to the TIKI and use a transfer program (Kermit) on the TIKI, but this I have not tested
 ---
 
 ## The TIKI-100

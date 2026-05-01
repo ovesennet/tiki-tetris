@@ -123,7 +123,7 @@ static uint8_t get_drop_delay(void)
 /* ── Drawing ── */
 
 /* Forward declarations */
-static void build_gem_tile(void);
+static void build_gem_tiles(void);
 static void build_black_tile(void);
 
 /* Pick a new random colour scheme (different from previous) */
@@ -135,38 +135,40 @@ static void pick_scheme(void)
     } while (s == g_prev_scheme);
     g_prev_scheme = g_scheme;
     g_scheme = s;
-    build_gem_tile();
 }
 
 /* Pre-rendered tile buffers (50 bytes each: 5 bytes/row × 10 rows).
- * Built once per colour scheme change. */
-static uint8_t g_gem_tile[50];
+ * One gem tile per piece type (index 1..7), built at startup. */
+static uint8_t g_gem_tiles[NUM_PIECES + 1][50];  /* [0] unused */
 static uint8_t g_black_tile[50];
 
 /* Pack two 4-bit colour nibbles into one VRAM byte (even=low, odd=high) */
 #define PACKPIX(a, b) (((b) << 4) | (a))
 
-/* Build the gem tile data for the current colour scheme */
-static void build_gem_tile(void)
+/* Per-piece bright/dark colour pairs (index 0 unused, 1..7 = I..L) */
+static const uint8_t g_piece_colours[NUM_PIECES + 1][2] = {
+    { 0,           0          },   /* 0: unused       */
+    { COL_BRCYAN,  COL_CYAN   },   /* I: cyan         */
+    { COL_YELLOW,  COL_ORANGE },   /* O: yellow       */
+    { COL_PINK,    COL_MAGENTA},   /* T: purple       */
+    { COL_BRGREEN, COL_GREEN  },   /* S: green        */
+    { COL_BRRED,   COL_RED    },   /* Z: red          */
+    { COL_BRBLUE,  COL_BLUE   },   /* J: blue         */
+    { COL_ORANGE,  COL_RED    },   /* L: orange       */
+};
+
+/* Build a gem tile with the given bright/dark colours into dest */
+static void build_one_gem_tile(uint8_t *dest, uint8_t bright, uint8_t dark)
 {
-    uint8_t bright, dark, r, *p;
-    uint8_t bb, bd, bw, dd, wb, ww, wd, dw, db;
+    uint8_t *p;
+    uint8_t bb, dd, wb, ww;
 
-    bright = g_schemes[g_scheme][0];
-    dark   = g_schemes[g_scheme][1];
-
-    /* Pre-compute common pixel pairs */
     ww = PACKPIX(COL_WHITE, COL_WHITE);
     wb = PACKPIX(COL_WHITE, bright);
-    wd = PACKPIX(COL_WHITE, dark);
-    bw = PACKPIX(bright, COL_WHITE);
     bb = PACKPIX(bright, bright);
-    bd = PACKPIX(bright, dark);
-    db = PACKPIX(dark, bright);
     dd = PACKPIX(dark, dark);
-    dw = PACKPIX(dark, COL_WHITE);
 
-    p = g_gem_tile;
+    p = dest;
 
     /* Row 0: WWWWWWWWWW (all white) */
     *p++ = ww; *p++ = ww; *p++ = ww; *p++ = ww; *p++ = ww;
@@ -190,21 +192,32 @@ static void build_gem_tile(void)
     *p++ = dd; *p++ = dd; *p++ = dd; *p++ = dd; *p++ = dd;
 }
 
+/* Build gem tiles for all 7 piece types */
+static void build_gem_tiles(void)
+{
+    uint8_t i;
+    for (i = 1; i <= NUM_PIECES; i++) {
+        build_one_gem_tile(g_gem_tiles[i],
+                           g_piece_colours[i][0],
+                           g_piece_colours[i][1]);
+    }
+}
+
 /* Build the black (empty) tile */
 static void build_black_tile(void)
 {
     memset(g_black_tile, 0, 50);
 }
 
-/* Draw a gem-style cell at board position (bx, by).
- * colour != COL_BLACK means draw a jewel tile; COL_BLACK = erase. */
-static void draw_cell(uint8_t bx, uint8_t by, uint8_t colour)
+/* Draw a cell at board position (bx, by).
+ * type = piece type 1..7 for a gem tile, or PIECE_NONE to erase. */
+static void draw_cell(uint8_t bx, uint8_t by, uint8_t type)
 {
     uint16_t px, py;
     if (by < HIDDEN_ROWS) return;
     px = BOARD_PX_X + (uint16_t)bx * CELL_SIZE;
     py = BOARD_PX_Y + (uint16_t)(by - HIDDEN_ROWS) * CELL_SIZE;
-    vid_blit_tile(px, py, (colour == COL_BLACK) ? g_black_tile : g_gem_tile);
+    vid_blit_tile(px, py, (type == PIECE_NONE) ? g_black_tile : g_gem_tiles[type]);
 }
 
 /* Draw the statistics header */
@@ -293,8 +306,7 @@ static void draw_board(void)
     uint8_t x, y;
     for (y = HIDDEN_ROWS; y < BOARD_ROWS; y++) {
         for (x = 0; x < BOARD_W; x++) {
-            uint8_t cell = board_get(x, y);
-            draw_cell(x, y, (cell != PIECE_NONE) ? COL_WHITE : COL_BLACK);
+            draw_cell(x, y, board_get(x, y));
         }
     }
 }
@@ -313,7 +325,7 @@ static void erase_piece(Piece *p)
                 bx = p->x + (int8_t)c;
                 by = p->y + (int8_t)r;
                 if (bx >= 0 && bx < BOARD_W && by >= HIDDEN_ROWS && by < BOARD_ROWS) {
-                    draw_cell((uint8_t)bx, (uint8_t)by, COL_BLACK);
+                    draw_cell((uint8_t)bx, (uint8_t)by, PIECE_NONE);
                 }
             }
             mask <<= 1;
@@ -335,7 +347,7 @@ static void draw_piece(Piece *p)
                 bx = p->x + (int8_t)c;
                 by = p->y + (int8_t)r;
                 if (bx >= 0 && bx < BOARD_W && by >= HIDDEN_ROWS && by < BOARD_ROWS) {
-                    draw_cell((uint8_t)bx, (uint8_t)by, COL_WHITE);
+                    draw_cell((uint8_t)bx, (uint8_t)by, p->type);
                 }
             }
             mask <<= 1;
@@ -358,7 +370,7 @@ static void draw_next_piece(void)
             if (mask & 0x8000) {
                 px = NEXT_PX_X + (uint16_t)c * CELL_SIZE;
                 py = NEXT_PX_Y + (uint16_t)r * CELL_SIZE;
-                vid_blit_tile(px, py, g_gem_tile);
+                vid_blit_tile(px, py, g_gem_tiles[g_next_piece]);
             }
             mask <<= 1;
         }
@@ -476,13 +488,10 @@ static void delta_move(uint8_t new_rot, int8_t new_x, int8_t new_y)
 
             if (in_old && !in_new) {
                 /* Cell vacated: draw black or board content */
-                if (board_get(bx, by) != PIECE_NONE)
-                    draw_cell((uint8_t)bx, (uint8_t)by, COL_WHITE);
-                else
-                    draw_cell((uint8_t)bx, (uint8_t)by, COL_BLACK);
+                draw_cell((uint8_t)bx, (uint8_t)by, board_get(bx, by));
             } else {
                 /* Cell newly occupied: draw gem */
-                draw_cell((uint8_t)bx, (uint8_t)by, COL_WHITE);
+                draw_cell((uint8_t)bx, (uint8_t)by, g_cur.type);
             }
         }
     }
@@ -558,12 +567,12 @@ static void lock_and_advance(void)
         draw_board();
     }
     draw_info();
-    draw_next_piece();
     draw_stats();
 
     if (!spawn_piece()) {
         g_game_over = 1;
     } else {
+        draw_next_piece();
         draw_piece(&g_cur);
         g_fall_timer = get_drop_delay();
     }
@@ -837,6 +846,7 @@ static void game_init(void)
     g_das_charged = 0;
     g_prev_scheme = 255;
     pick_scheme();
+    build_gem_tiles();
     build_black_tile();
 
     board_init();
@@ -922,11 +932,12 @@ void main(void)
                 return;
             }
             if (input_pressed(KBIT_PAUSE)) {
-                draw_text_centred(120, "PAUSED", COL_WHITE);
+                draw_text_centred(120, "PAUSE", COL_WHITE);
                 /* Wait for release then press of P */
                 do { input_poll(); } while (input_held(KBIT_PAUSE));
                 do { input_poll(); } while (!input_pressed(KBIT_PAUSE));
-                vid_fill_rect(0, 120, 255, FONT_CH, COL_BLACK);
+                draw_board();
+                draw_piece(&g_cur);
             }
 
             /* Gravity */

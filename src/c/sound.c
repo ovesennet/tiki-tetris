@@ -32,10 +32,10 @@
 #define REST        0
 
 /* ── Duration units (delay ticks) ── */
-#define D8   1600   /* eighth note      */
-#define D4   3200   /* quarter note     */
-#define D4D  4800   /* dotted quarter   */
-#define D2   6400   /* half note        */
+#define D8   2000   /* eighth note      */
+#define D4   4000   /* quarter note     */
+#define D4D  6000   /* dotted quarter   */
+#define D2   8000   /* half note        */
 
 /* ── RNG counter (extern from main.c) ── */
 extern uint16_t g_rng;

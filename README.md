@@ -4,6 +4,7 @@ A Tetris game for the **TIKI-100** computer, written in C and Z80 assembly.
 
 ![Title Screen](img/1.png)
 ![Gameplay](img/2.png)
+![Gameplay](img/3.png)
 
 ---
 
@@ -135,7 +136,7 @@ This will:
 3. Write `TIKITET.COM` into the CP/M directory on the disk image
 4. Launch the Djupdal emulator with `work.dsk` on drive A:
 
-Once the emulator boots, select **T TIKITETRIS** from the TIKI-menu to start
+Once the emulator boots, select option **T TIKITETRIS** from the TIKI-menu to start
 the game.
 
 Deploy options:
@@ -167,7 +168,7 @@ img/               Screenshots
 
 ## Credits
 
-**TIKI TETRIS** by Arctic Retro.
+**TIKI TETRIS** programmed by Arctic Retro (Tommy Ovesen) with the help of Anthropic Claude Opus 4.6.
 
 Built with [z88dk](https://z88dk.org/). Emulated with the
-[Djupdal TIKI-100 emulator](https://github.com/djupdal/tiki-emul).
+[Djupdal TIKI-100 emulator, Arctic retro verion](https://github.com/ovesennet/Tiki-100-emulator).
